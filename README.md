@@ -61,7 +61,7 @@ question → brief → legs 1..N (independent, read-only)
 
 The entry script **refuses a single leg** for judgement-type work; a dead leg fails the batch rather
 than shrinking it; the panel proposes and a replay corpus decides. Full chapter:
-[`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md).
+[`docs/08-cross-validation.md`](docs/08-cross-validation.md).
 
 ## Three layers, one direction
 
@@ -126,7 +126,7 @@ These are scale indicators, not targets:
 5. [`docs/05-evaluation.md`](docs/05-evaluation.md) — double probes, deterministic checks, telemetry
 6. [`docs/06-incidents.md`](docs/06-incidents.md) — four failures that shaped the design
 7. [`docs/07-adoption.md`](docs/07-adoption.md) — a minimum viable harness in five steps
-8. [`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md) — **the centre**: independent agents checking each other, evidence over votes, fail-closed panels
+8. [`docs/08-cross-validation.md`](docs/08-cross-validation.md) — **the centre**: independent agents checking each other, evidence over votes, fail-closed panels
 
 ---
 
@@ -145,6 +145,6 @@ These are scale indicators, not targets:
 
 两个扩展轴（精髓所在）：**多 agent 一本台账**（隔离上下文 / 文件集互斥 / 带证据收口 / 兜底唤醒）与
 **多 provider 一张路由表**（按角色不按牌子 / 审计单腿直接拒 / 分歧保留不取平均 / 预算先判）。
-详见 `docs/08-multi-agent-and-providers.md`。
+详见 `docs/08-cross-validation.md`。
 
 阅读顺序同上；若只读一篇，读 `docs/03-gates.md`。
