@@ -74,10 +74,24 @@ violation returns next month.
 | Safety | dangerous commands, protected paths, inline payload, upstream sync | destructive work needs an explicit exception |
 | Budget and context | token budget, M31 gate, spawn concurrency | cost is bounded before the call, not after |
 | Observation | probe expectations, registration observe, startup verify | the gate system reports on itself |
+| Multi-agent / multi-provider | routing table, leg tokens, concurrency caps | panels only where judgement is needed; single legs refused for audits |
 
 Details and the block/allow contract: [`docs/03-gates.md`](docs/03-gates.md).
 
 ---
+
+## Two axes that scale it
+
+Most harnesses stop at "one agent, one model". The two axes that turn it into an operator are
+covered in [`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md):
+
+- **several agents, one ledger** — isolated contexts, disjoint file claims, evidence-based closes,
+  concurrency caps by kind, fallback wakes when completion events are dropped;
+- **several providers, one routing table** — roles instead of brands, single legs refused for
+  audit work, disagreement preserved rather than averaged, budgets checked before dispatch.
+
+They are not independent: parallel workers only pay off when they are isolated, and isolation is
+only trustworthy when the panel is heterogeneous.
 
 ## Numbers from the deployment it came from
 
@@ -100,6 +114,7 @@ These are scale indicators, not targets:
 5. [`docs/05-evaluation.md`](docs/05-evaluation.md) — double probes, deterministic checks, telemetry
 6. [`docs/06-incidents.md`](docs/06-incidents.md) — four failures that shaped the design
 7. [`docs/07-adoption.md`](docs/07-adoption.md) — a minimum viable harness in five steps
+8. [`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md) — several agents, one ledger; several providers, one routing table
 
 ---
 
@@ -115,5 +130,9 @@ These are scale indicators, not targets:
 
 关键数字（规模参考，不是指标）：21 个规则包、约 4.2k 行闸逻辑、闸自身的 65 个测试文件、
 274 条双探针断言（每组都要求「该拦的拦、该放的放」）、约 3.4 万条遥测事件、78 个运维脚本。
+
+两个扩展轴（精髓所在）：**多 agent 一本台账**（隔离上下文 / 文件集互斥 / 带证据收口 / 兜底唤醒）与
+**多 provider 一张路由表**（按角色不按牌子 / 审计单腿直接拒 / 分歧保留不取平均 / 预算先判）。
+详见 `docs/08-multi-agent-and-providers.md`。
 
 阅读顺序同上；若只读一篇，读 `docs/03-gates.md`。
