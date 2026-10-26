@@ -45,6 +45,24 @@ Companion repo: **[longmem](https://github.com/SquareXRay/longmem)** covers the 
 
 ---
 
+## The core: independent agents, not independent opinions
+
+A rule the model can ignore is not a control — and **a claim one agent makes about its own work is
+not evidence.** Verification here is a second (and third) agent with no access to the first one's
+reasoning: isolated context, read-only, forbidden to read each other, different model families where
+possible, same brief and same raw material.
+
+```
+question → brief → legs 1..N (independent, read-only)
+        → claims with file:line evidence
+        → merge by evidence, never by vote (disagreement is kept)
+        → only reproduced claims become tasks
+```
+
+The entry script **refuses a single leg** for judgement-type work; a dead leg fails the batch rather
+than shrinking it; the panel proposes and a replay corpus decides. Full chapter:
+[`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md).
+
 ## Three layers, one direction
 
 ```mermaid
@@ -80,18 +98,12 @@ Details and the block/allow contract: [`docs/03-gates.md`](docs/03-gates.md).
 
 ---
 
-## Two axes that scale it
+## Why panels, and not just parallel workers
 
-Most harnesses stop at "one agent, one model". The two axes that turn it into an operator are
-covered in [`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md):
-
-- **several agents, one ledger** — isolated contexts, disjoint file claims, evidence-based closes,
-  concurrency caps by kind, fallback wakes when completion events are dropped;
-- **several providers, one routing table** — roles instead of brands, single legs refused for
-  audit work, disagreement preserved rather than averaged, budgets checked before dispatch.
-
-They are not independent: parallel workers only pay off when they are isolated, and isolation is
-only trustworthy when the panel is heterogeneous.
+Parallelism gives you throughput. Independent agents checking each other give you **epistemic
+value** — a way to notice when the whole system, including its gates, is confidently wrong.
+Providers are plumbing for that independence: a routing table by role, heterogeneous families where
+judgement is required, and a hard refusal of single-leg audits. See chapter 8.
 
 ## Numbers from the deployment it came from
 
@@ -114,7 +126,7 @@ These are scale indicators, not targets:
 5. [`docs/05-evaluation.md`](docs/05-evaluation.md) — double probes, deterministic checks, telemetry
 6. [`docs/06-incidents.md`](docs/06-incidents.md) — four failures that shaped the design
 7. [`docs/07-adoption.md`](docs/07-adoption.md) — a minimum viable harness in five steps
-8. [`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md) — several agents, one ledger; several providers, one routing table
+8. [`docs/08-multi-agent-and-providers.md`](docs/08-multi-agent-and-providers.md) — **the centre**: independent agents checking each other, evidence over votes, fail-closed panels
 
 ---
 
