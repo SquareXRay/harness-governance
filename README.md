@@ -1,7 +1,7 @@
 <p align="center">
   <b>Harness Governance</b><br>
   <i>Mechanical gates, ledgers and evaluations for long-lived coding agents.</i><br>
-  <sub>English first · 中文摘要附后</sub>
+  <sub>Per-section English / 中文对照</sub>
 </p>
 
 <p align="center">
@@ -167,7 +167,7 @@ These are scale indicators, not targets:
 - 92 组成对用例里的 274 条探针断言（每道闸都有一个必须拦的用例和一个必须放的用例）
 - 累积约 3.4 万条遥测事件；每一次拦截都带一个机器可读的原因
 - 78 个运维脚本；派发、队列与记忆流转只走脚本
-- 记忆：23 个文件 / 共约 480 千字节，索引文件小于 20 千字节，主题文件上限 40 千字节
+- 记忆：23 个文件 / 共约 480 KB，索引文件小于 20 KB，主题文件上限 40 KB
 
 ---
 
@@ -191,4 +191,3 @@ These are scale indicators, not targets:
 7. [`docs/07-adoption.md`](docs/07-adoption.md) —— 五步搭出最小可用 harness
 8. [`docs/08-cross-validation.md`](docs/08-cross-validation.md) —— **中心**：独立 agent 互检、证据优先于票数、评审团失败朝严
 
----

@@ -81,4 +81,3 @@ names the session, the close names the commit.
 
 这条链上的每一个箭头都是可观测的：拦截理由点名缺失的令牌，台账行点名会话，收口点名 commit。
 
----

@@ -128,4 +128,3 @@ Auto-cancelling on suspicion is how you lose work.
 | 任务跑了，却从没被报告 | 没有 collector / 没有 evidence 字段 |
 | 同一个任务被派了两次 | 令牌可重用，或者根本没令牌 |
 
----

@@ -66,13 +66,13 @@ Covered in `03-gates.md`; the evaluation layer adds the accounting:
 | must-block cases | one per protective rule | 100 % pass |
 | must-allow cases | one per protective rule | 100 % pass |
 | replay diff | verdict changes on a historical corpus | each change explained |
-| false-positive rate | blocks later reversed by a human | < 2 % of blocks |
+| false-positive rate | blocks later reversed by a human | <2% of blocks |
 | silent scans | scheduled checks that produced no output | monitored, not counted as success |
 
 | 指标 | 定义 | 目标 |
 |---|---|---|
-| 必须拦的用例 | 每条防护性规则一个 | 全部通过 |
-| 必须放的用例 | 每条防护性规则一个 | 全部通过 |
+| 必须拦的用例 | 每条防护性规则一个 | 100 % |
+| 必须放的用例 | 每条防护性规则一个 | 100 % |
 | 回放差异 | 历史语料上的判决变化 | 每一处变化都有解释 |
 | 误拦率 | 事后被人推翻的拦截 | 占全部拦截 <2% |
 | 静默巡检 | 没有产生任何输出的定时检查 | 被监控，但不计为成功 |
@@ -108,4 +108,3 @@ also proved the gate was live. Both facts came from the same event — design fo
 
 有一个新规则包上线，专门抓派发文本里的「只读措辞」。一周之内，它拦住了一个正当任务，因为短语「idempotent release」里含有子串「awaiting approval」。遥测那一行带着命中项，于是误拦在几秒内就水落石出，同时也证明了这道闸是活的。两个事实来自同一个事件——设计时就冲着这一点去。
 
----
