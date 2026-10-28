@@ -45,10 +45,10 @@ either failure. Then break the gate and watch the runner fail.
 
 ### Step 4 — add one silent scan
 
-Something that can only be detected over time: stale inflight rows, memory budget drift, index/file
+Something that can only be detected over time: stale running rows, memory budget drift, index/file
 mismatch. Silent when clean, one line per finding, plus a liveness timestamp.
 
-第四步——加一条静默巡检。专找那种只能靠时间才能发现的东西：陈旧的 inflight 行、记忆预算漂移、索引与文件不一致。健康时静默，每条发现一行，外加一个活性时间戳。
+第四步——加一条静默巡检。专找那种只能靠时间才能发现的东西：陈旧的 running 行、记忆预算漂移、索引与文件不一致。健康时静默，每条发现一行，外加一个活性时间戳。
 
 ### Step 5 — start the decision ledger
 

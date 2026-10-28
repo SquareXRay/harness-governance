@@ -1,9 +1,9 @@
 # 06 · Incidents
 
-Four failures that changed the design. Each is written as symptom → root cause → fix → general
+Five failures that changed the design. Each is written as symptom → root cause → fix → general
 lesson, because that is the only form that transfers.
 
-四次改变了设计的故障。每一条都写成「症状 → 根因 → 修法 → 通用教训」，因为这是唯一能迁移的形式。
+五次改变了设计的故障。每一条都写成「症状 → 根因 → 修法 → 通用教训」，因为这是唯一能迁移的形式。
 
 ## 1. A gate blocked a task because of one character
 
@@ -121,4 +121,34 @@ phrase ("only for the sync script") is not a permission the checker can enforce 
 this by rejecting its own explanatory comment.
 
 **教训。** 例外必须*比规则更窄*，要用检查器真正能验证的语法来表达（脚本基名），并且写进它们所作用的那份数据文件里。用一句话授予的许可（「只给同步脚本用」）不是检查器能执行的许可——闸拒绝了它自己那句说明性注释，正好证明了这一点。
+
+---
+
+## 5. Seven cards said "running"; nobody was running
+
+**Symptom.** A cleanup pass found seven cards in `running` that had never been claimed and had not
+moved for 2.6–5.7 hours. The panel showed them as work in progress; the ledger had nothing alive
+behind them.
+
+**症状。** 一次清整发现七张卡停在 `running`：从没被 claim 过，2.6–5.7 小时没动过。面板把它们显示成「进行中」，台账里却没有任何活着的东西。
+
+**Root cause.** Three defects stacked: the card schema carries no session or owner link, so the
+panel could only render the card's own status; the board-to-ledger sync asked the card backend for
+one card at a time until the whole pass timed out; and when the backend held no job container the
+sync **skipped silently**, leaving terminal ledger rows looking open forever.
+
+**根因。** 三个缺陷叠在一起：卡片 schema 里没有会话或 owner 关联，面板只能渲染卡自己的状态；看板与台账的同步逐卡调用后端，直到整轮超时；后端没有 job 容器时，同步**静默跳过**，于是台账已终态的行看起来永远开着。
+
+**Fix.** Bind cards to ledger rows by `cardId`; sync from a single snapshot, with drift exit `0`
+and only a check failure exit `2`; never skip silently — an unresolved terminal row is handed to
+the reconciler; and let the reconciler demote a `running` card when the ledger is not running, has
+no claim, or all three activity signals have been silent for more than 20 minutes.
+
+**修法。** 卡片用 `cardId` 绑到台账行；同步改成单次快照，查到漂移交 `0`、只有检查出错才交 `2`；不再静默跳过——没收口的终态行交给对账器；并由对账器在「台账不在跑 / 没有 claim / 三项活性证据静默超过 20 分钟」时把 `running` 卡退回 `ready`。
+
+**Lesson.** A status field is not a state. If a surface cannot name *who* is working and *what
+changed recently*, its "running" is a claim with no evidence — and the fix is a comparison, not a
+bigger button.
+
+**教训。** 状态字段不是状态。一面展示层若说不出「**谁**在干」和「**最近**动了什么」，它的「进行中」就是一句没有证据的说辞——解法是加一层比较，而不是加一个更大的按钮。
 

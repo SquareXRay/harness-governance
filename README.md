@@ -27,12 +27,12 @@ scheduled scan that reports when nothing changed.
 
 核心命题很简单：**模型可以无视的指令，不算控制。** 每一条真正要紧的规则，都必须由某种「说服不了」的东西来执行——拦住工具调用的 hook、作为该动作唯一路径的脚本，或者一个「什么都没变化也会报出来」的定时巡检。
 
-This repository documents the three enforcement layers, the 21 rule packs behind them, the
+This repository documents the three enforcement layers, the 23 rule packs behind them, the
 ledger design that makes dispatch auditable, and the evaluation harness that keeps the gates
 themselves honest. It is extracted from a personal agent that has been running daily for months,
 with the machine-specific parts removed.
 
-本仓记录三层执行机制、它们背后的 21 个规则包、让派发可审计的台账设计，以及让闸自身保持诚实的评估 harness。内容抽自一个已经每天运行数月、持续干活的个人 agent，机器相关的部分已全部剔除。
+本仓记录三层执行机制、它们背后的 23 个规则包、让派发可审计的台账设计，以及让闸自身保持诚实的评估 harness。内容抽自一个已经每天运行数月、持续干活的个人 agent，机器相关的部分已全部剔除。
 
 Companion repo: **[longmem](https://github.com/SquareXRay/longmem)** covers the memory side.
 
@@ -116,6 +116,27 @@ violation returns next month.
 
 ---
 
+## The second ledger: our own mistakes
+
+Dispatch has a ledger; so does the harness's own failures. A tool-level error that costs a round trip
+is written the same turn as one line — symptom, root cause, prevention — never a diary.
+
+派发有台账，harness 自己的失败也有。一次让你返工的工具层错误，当回合就写成一行：现象、根因、预防——不是流水账。
+
+| Stage | Mechanism |
+|---|---|
+| write | one entry per error, auto-numbered, same-type errors merged as `×N` |
+| dedupe | an explicit merge flag (`--dup-of #N`) plus a structural emptiness check, not a byte-count heuristic |
+| inject | at dispatch time, matching entries surface through entry-level retrieval; every hit is logged |
+| graduate | three states (open / upgraded / expired); the **second** same-type error must become a rule, or the ledger is decorative |
+| report | a recurrence report over the event stream, dry-run by default |
+
+Two choices are worth copying: injection is **advisory** — it adds a line to the brief and never
+rewrites the task — and the write path **never refuses** a new entry at the working-in-progress
+ceiling, because a ledger that rejects writes during an incident is useless exactly when you need it.
+
+两个值得照抄的选择：注入是**顾问性**的——只往任务书里加一行，绝不改写任务；写入路径在工作量上限处**永不拒写**——事故正发生时还拒收的错题本，等于没有。
+
 ## What ships in the rule layer
 
 | Group | Rule packs | Purpose |
@@ -157,13 +178,13 @@ These are scale indicators, not targets:
 
 以下是规模指标，不是目标：
 
-- 21 rule packs, ~4.2k lines of gate logic, 65 test files for the gates alone
+- 23 rule packs, ~4.2k lines of gate logic, 65 test files for the gates alone
 - 274 probe assertions in 92 paired cases (each gate has a must-block and a must-allow case)
 - ~34k telemetry events accumulated; every block carries a machine-readable reason
 - 78 operational scripts; dispatch, queue and memory flows are script-only
 - memory: 23 files / ~480 KB total, index file under 20 KB, topic files capped at 40 KB
 
-- 21 个规则包、约 4.2k 行闸逻辑、仅闸本身就有 65 个测试文件
+- 23 个规则包、约 4.2k 行闸逻辑、仅闸本身就有 65 个测试文件
 - 92 组成对用例里的 274 条探针断言（每道闸都有一个必须拦的用例和一个必须放的用例）
 - 累积约 3.4 万条遥测事件；每一次拦截都带一个机器可读的原因
 - 78 个运维脚本；派发、队列与记忆流转只走脚本
@@ -178,7 +199,7 @@ These are scale indicators, not targets:
 3. [`docs/03-gates.md`](docs/03-gates.md) — how to write a gate that survives refactoring
 4. [`docs/04-orchestration.md`](docs/04-orchestration.md) — dispatch ledger, single-use tokens, serial queue
 5. [`docs/05-evaluation.md`](docs/05-evaluation.md) — double probes, deterministic checks, telemetry
-6. [`docs/06-incidents.md`](docs/06-incidents.md) — four failures that shaped the design
+6. [`docs/06-incidents.md`](docs/06-incidents.md) — five failures that shaped the design
 7. [`docs/07-adoption.md`](docs/07-adoption.md) — a minimum viable harness in five steps
 8. [`docs/08-cross-validation.md`](docs/08-cross-validation.md) — **the centre**: independent agents checking each other, evidence over votes, fail-closed panels
 
@@ -187,7 +208,7 @@ These are scale indicators, not targets:
 3. [`docs/03-gates.md`](docs/03-gates.md) —— 怎么写一道经得起重构的闸
 4. [`docs/04-orchestration.md`](docs/04-orchestration.md) —— 派单台账、一次性令牌、串行队列
 5. [`docs/05-evaluation.md`](docs/05-evaluation.md) —— 双探针、确定性检查、遥测
-6. [`docs/06-incidents.md`](docs/06-incidents.md) —— 四次塑造了设计的事故
+6. [`docs/06-incidents.md`](docs/06-incidents.md) —— 五次塑造了设计的事故
 7. [`docs/07-adoption.md`](docs/07-adoption.md) —— 五步搭出最小可用 harness
 8. [`docs/08-cross-validation.md`](docs/08-cross-validation.md) —— **中心**：独立 agent 互检、证据优先于票数、评审团失败朝严
 

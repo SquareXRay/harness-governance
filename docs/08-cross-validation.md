@@ -224,7 +224,7 @@ orchestration layer, compressed:
 | Rule | Failure prevented |
 |---|---|
 | one task = one declared file set | two writers, one file, conflicting commits |
-| claim-time conflict check (not registration-time) | "queued" promises that never run |
+| claim-time conflict check (not registration-time) | "ready" promises that never start |
 | concurrency caps by kind (writers vs reviewers) | host saturation, rate limits |
 | worktrees for same-repo parallelism | one child's dirty tree blocking another |
 | close requires evidence (commit sha / report path) | "done" that cannot be verified |

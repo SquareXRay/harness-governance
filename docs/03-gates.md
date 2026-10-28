@@ -116,21 +116,33 @@ make this useful:
 - **改坏闸，而不是改测试。** 在信任一组用例之前，先故意把闸改坏，确认测试变红。一个不可能失败的测试，只是文档。
 - **回放真实历史。** 留一批过去被拦住的调用语料；改完匹配器之后，把语料正反两个方向都重跑一遍，并对判决做 diff。任何新放行的用例都必须能解释成误拦，任何新拦截的用例都必须给出你在评审时会接受的理由。
 
+## Drift is not a block
+
+Not every enforcement is a refusal. Structural drift between the ledger, the cards and the panel is
+checked by a reconciler that is read-only by default (`--check`) and corrects only under `--apply`.
+Its exit codes separate *finding* drift — a result — from *failing to check* — an error; conflating
+the two trains people to ignore the check. Four comparisons are the minimum: ledger without a card,
+card without a ledger row, ledger terminal while the card is open, card running while the ledger is
+not (or nobody is working). Adding a fourth surface without adding the fourth comparison leaves the
+system with two truths.
+
+不是所有执行都是「拦」。台账、卡片、面板之间的结构性漂移，由默认只读（`--check`）、只有 `--apply` 才纠正的对账器检查；退出码把「**查到**漂移」（一种结果）和「**查不成**」（一个错误）分开——把两者混为一谈，等于训练所有人忽略这项检查。最少要有四个比较：有台账没卡、有卡没台账行、台账已终态卡还开着、卡在跑而台账不是（或根本没人在干）。加了一面新的展示层却不加对应的比较，系统就会留下两套真相。
+
 ## Catalogue
 
 | Group | Packs | Sample refusal |
 |---|---|---|
-| Dispatch flow | flow, duplicate, route, concurrency, collector-wake | spawn without a single-use token |
+| Dispatch flow | flow, duplicate, route, concurrency, collector-wake, worktree-origin, agent-send | spawn without a single-use token |
 | Accounting | ledger, ask, commit-discipline, one-shot | "I will do it later" without a row |
-| Safety | dangerous-commands, protected-paths, inline-payload, upstream-sync | writing a protected path directly |
+| Safety | dangerous-commands, protected-paths, inline-payload, upstream-sync, write-postcheck | writing a protected path directly |
 | Budget | token-budget, model-tier, spawn-concurrency | over-budget call |
 | Observation | probe-expectations, registration-observe, startup-verify | gate suite did not run |
 
 | 组 | 规则包 | 示例拒绝 |
 |---|---|---|
-| 派发流 | flow、duplicate、route、concurrency、collector-wake | 没有一次性令牌就 spawn |
+| 派发流 | flow、duplicate、route、concurrency、collector-wake、worktree-origin、agent-send | 没有一次性令牌就 spawn |
 | 记账 | ledger、ask、commit-discipline、one-shot | 没有台账行的「我稍后做」 |
-| 安全 | dangerous-commands、protected-paths、inline-payload、upstream-sync | 直接写受保护路径 |
+| 安全 | dangerous-commands、protected-paths、inline-payload、upstream-sync、write-postcheck | 直接写受保护路径 |
 | 预算 | token-budget、model-tier、spawn-concurrency | 超出预算的调用 |
 | 观测 | probe-expectations、registration-observe、startup-verify | 闸测试集没跑 |
 

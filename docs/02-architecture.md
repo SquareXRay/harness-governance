@@ -69,8 +69,8 @@ model wants to spawn a sub-agent
   → rule pack: is there a single-use token for this task id?
       no  → block, with the exact command that would create one
       yes → consume token, register the run, allow
-  → sub-agent starts, ledger row goes queued → inflight
-  → sub-agent writes a file that another inflight task also declares
+  → sub-agent starts, ledger row goes ready → running
+  → sub-agent writes a file that another running task also declares
       → duplicate gate blocks the second write path
   → sub-agent closes with evidence (commit sha)
   → ledger row done; dependent rows promoted by the queue
