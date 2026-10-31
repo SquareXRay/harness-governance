@@ -121,12 +121,72 @@ make this useful:
 Not every enforcement is a refusal. Structural drift between the ledger, the cards and the panel is
 checked by a reconciler that is read-only by default (`--check`) and corrects only under `--apply`.
 Its exit codes separate *finding* drift — a result — from *failing to check* — an error; conflating
-the two trains people to ignore the check. Four comparisons are the minimum: ledger without a card,
-card without a ledger row, ledger terminal while the card is open, card running while the ledger is
-not (or nobody is working). Adding a fourth surface without adding the fourth comparison leaves the
-system with two truths.
+the two trains people to ignore the check. "How many comparisons" is not a design taste; each one
+corresponds to a way two surfaces can disagree, so the set grows with the surfaces. Our deployment
+now carries nine:
 
-不是所有执行都是「拦」。台账、卡片、面板之间的结构性漂移，由默认只读（`--check`）、只有 `--apply` 才纠正的对账器检查；退出码把「**查到**漂移」（一种结果）和「**查不成**」（一个错误）分开——把两者混为一谈，等于训练所有人忽略这项检查。最少要有四个比较：有台账没卡、有卡没台账行、台账已终态卡还开着、卡在跑而台账不是（或根本没人在干）。加了一面新的展示层却不加对应的比较，系统就会留下两套真相。
+| Check | Drift it names | Under `--apply` |
+|---|---|---|
+| D1 | ledger `ready`/`running`, no card | create the card (idempotent by title prefix) |
+| D2 | card bound to no ledger row | report only (unowned) |
+| D3 | ledger terminal, card still open | close and archive the card |
+| D4 | card `running`, ledger is not / no claim / activity silent >20 min | demote to `ready` + diagnostic |
+| D5 | ledger open (`running`/`blocked`) but the card is done, or its `cardId` is gone | report only; explicit flags to close the row or reopen the card |
+| D6 | ledger terminal, card in no terminal state, not archived | archive the card (no claim needed) |
+| D7 | ledger `blocked` though its carrier is still alive | second hit ≥60 s apart → `blocked → ready → running`; never closes |
+| D8 | a retired ledger mirror still on disk | archive it, then delete (content is no longer compared; a symlink to the canonical file is not drift) |
+| D9 | an `automation` entry still holds a `cardId` | report only; fix through the release-cards command |
+
+The exit code has four tiers, not three, because "did not finish" must not look like "found drift":
+`0` converged (`--check` clean, or `--apply` then re-check of D1/D3/D4 all zero), `1` drift found
+in read-only mode, `2` a real error (contract missing or drifted, ledger unreadable, unknown state,
+backend unreadable, apply errors, or leftovers after `--apply` — the leftovers are written to a
+to-do file so a human sees red), `3` partial: the wall clock or the per-run write budget ran out, so
+this round simply did not finish — the outer scheduler must not count it as failure, or ten
+consecutive runs disable the job. Confirming a write conflict twice in a row is `deferred`, also
+not an error: another session is editing that card, which is normal jitter.
+
+不是所有执行都是「拦」。台账、卡片、面板之间的结构性漂移，由默认只读（`--check`）、只有 `--apply` 才纠正的对账器检查；退出码把「**查到**漂移」（一种结果）和「**查不成**」（一个错误）分开——把两者混为一谈，等于训练所有人忽略这项检查。「要几个比较」不是风格问题：每一个比较对应两个展示面之间一种具体的分歧方式，所以展示面增加，比较也要增加。我们的部署现在有九个：
+
+| 判据 | 命名的漂移 | `--apply` 下 |
+|---|---|---|
+| D1 | 台账 `ready`/`running` 却没卡 | 补建卡（按标题前缀幂等查重） |
+| D2 | 卡没有绑到任何台账行 | 只报告（unowned） |
+| D3 | 台账已终态、卡还开着 | 收口并归档 |
+| D4 | 卡 `running`，台账不是 / 没有 claim / 活性静默 >20 分钟 | 退回 `ready` + 诊断 |
+| D5 | 台账非终态（`running`/`blocked`）但卡已 done，或 `cardId` 在板上查不到 | 只报告；另有显式开关才收口或重开卡 |
+| D6 | 台账终态、卡非终态且未归档 | 直接归档（不要求 claim） |
+| D7 | 台账 `blocked` 但载体还活着 | 两次命中间隔 ≥60 秒才动 → `blocked → ready → running`；绝不收口 |
+| D8 | 已退役的台账镜像还躺在盘上 | 先留档再删除（不再比内容；指向 canonical 的软链不算漂移） |
+| D9 | `automation` 条目仍挂着 `cardId` | 只报告；修复走 release-cards 命令 |
+
+退出码是四档而不是三档，因为「没查完」绝不能长得像「查到漂移」：`0` 收敛（`--check` 干净，或 `--apply` 后复核 D1/D3/D4 全 0）、`1` 只读模式查到漂移、`2` 真错误（契约缺失或漂移、台账读不了、未知状态、后端读不到、apply 报错、或 `--apply` 后仍有残留——残留会写进待办文件，让人看见红）、`3` 部分完成：墙钟或单轮写配额用完，本轮没查完；外层调度不得按失败计数，否则连续十轮就会把任务自动禁用。同一个写动作连续两次撞上写冲突则记 `deferred`，同样不算错误——别的会话正在编辑那张卡，属正常抖动。
+
+## One writer per truth
+
+The gate layer also guards the *write path*, not just the call shape. A ledger with two writers has
+two states: any module that writes the ledger file directly skips the event log and the card
+projection, so the ledger changes and the cards silently do not (we measured 40 cards off by one
+state on a single day). Two static guards close that:
+
+- **single writer** — only the store module may actually persist the ledger (`json.dump` /
+  `os.replace` / `open(...,"w")`); every other module, including the CLI shell, forwards. The
+  checker parses the AST, not the text, so a renamed variable does not hide the write, and dynamic
+  string concatenation of the path is flagged too.
+- **no bare locks** — a module that takes `fcntl.flock` itself bypasses the shared lock and its
+  watchdog. Raw locking is banned with a *per-file* whitelist for the two legitimate cases (an
+  alias table and an ask ledger, which lock different files); a whole-category exemption would let
+  the next new lock through.
+
+Both guards ship with paired probes like every other pack: a true positive must block, a mention in
+a comment or a non-writing tool call must pass.
+
+闸层不只管调用的形状，也管**写入路径**。台账有两个写者就是两套状态：任何模块直接写台账文件，都会绕过事件日志与卡片投影——台账变了、卡悄悄没变（我们实测过一天内 40 张卡错位一个状态）。两道静态守卫把口子封住：
+
+- **唯一写者**：只有存储模块可以真正落盘台账（`json.dump` / `os.replace` / `open(...,"w")`），包括 CLI 壳在内的其它模块只能转发。检查器解析 AST 而不是文本，所以改变量名藏不住这次写；把台账路径动态拼出来的写法同样会被抓。
+- **禁裸锁**：自己拿 `fcntl.flock` 的模块会绕过共享锁与它的看门狗。裸锁按**逐文件**白名单放行两个正当用例（别名表与 ask 台账，它们锁的是别的文件）；整类豁免会让下一把新锁直接溜过去。
+
+两道守卫和其它规则包一样带成对探针：真阳必须拦，注释里的提及或非写类工具调用必须放行。
 
 ## Catalogue
 

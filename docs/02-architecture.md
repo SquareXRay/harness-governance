@@ -7,7 +7,7 @@ The system is five layers, and each layer exists because the layer above it was 
 | Layer | What it holds | Read when | Enforced by |
 |---|---|---|---|
 | **Protocol** | identity, boundaries, routing, the decision-default table | every turn (injected) | injected size budget |
-| **Tool gates** | 21 rule packs on `before_tool_call` | every tool call | hook (block / allow) |
+| **Tool gates** | 24 rule packs on `before_tool_call` | every tool call | hook (block / allow) |
 | **Orchestration** | dispatch ledger, tokens, queue states, sub-agent runs | every delegation | entry scripts |
 | **Memory** | index, topics, journals, incident ledger, cold volumes | trigger-word or search | budget + structure gates |
 | **Evaluation** | telemetry, deterministic checks, e2e tasks, periodic scans | scheduled | reports + silent scans |
@@ -15,7 +15,7 @@ The system is five layers, and each layer exists because the layer above it was 
 | 层 | 承载什么 | 何时读 | 由什么执行 |
 |---|---|---|---|
 | **协议** | 身份、边界、路由、决策默认值表 | 每一轮（注入） | 注入体积预算 |
-| **工具闸** | `before_tool_call` 上的 21 个规则包 | 每次工具调用 | hook（拦 / 放） |
+| **工具闸** | `before_tool_call` 上的 24 个规则包 | 每次工具调用 | hook（拦 / 放） |
 | **编排** | 派单台账、令牌、队列状态、子会话运行 | 每次委派 | 入口脚本 |
 | **记忆** | 索引、主题、日志、事故台账、冷卷 | 触发词或检索 | 预算 + 结构闸 |
 | **评估** | 遥测、确定性检查、e2e 任务、周期巡检 | 定时 | 报告 + 静默巡检 |

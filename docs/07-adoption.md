@@ -1,6 +1,6 @@
 # 07 · Adoption
 
-You do not need 21 rule packs. You need three, chosen by cost of the failure, plus one ledger.
+You do not need 24 rule packs. You need three, chosen by cost of the failure, plus one ledger.
 
 你并不需要 21 个规则包。你需要三个——按故障代价挑出来的三个，再加一本台账。
 

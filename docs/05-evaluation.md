@@ -38,6 +38,42 @@ Rules for a usable stream:
 - **绝不记录完整 prompt**；只记目标段（截断），其余部分记哈希；
 - **被拦的尝试同样是事件** —— 一个只记录成功拦截的闸，会把自己误拦的数据丢掉。
 
+## Export before delete
+
+Retention is not "drop rows older than N days"; it is "export them, prove the export, then drop".
+Each deletion batch is written per (database, table, month) as `jsonl.zst`, with a `.sha256` file
+and a `.manifest.json` recording row count, byte count, time range, source database, sqlite and
+zstd versions, and the predicate used.
+
+保留期不是「删掉 N 天前的行」，而是「先导出、再验明导出、最后才删」。每一批待删行按（库、表、月）写成 `jsonl.zst`，旁边一份 `.sha256` 和一份 `.manifest.json`，记下行数、字节数、时间范围、源库、sqlite 与 zstd 版本，以及所用的谓词。
+
+Four properties make this safe to run unattended:
+
+四个性质，让它可以无人值守地跑：
+
+- **one predicate.** Export and `DELETE` share the same `where` + params, so "the rows we exported"
+  and "the rows we deleted" cannot drift. When the reuse check compares rows, it compares params
+  too — same month and same row count with a different window is a different export.
+- **fail-closed.** Any write, checksum or compression problem raises; the caller then deletes
+  **nothing**. Half an export is not an archive.
+- **idempotent, never overwriting.** A target is reused only when the manifest, the sha256 and a
+  re-decompressed row count all agree; otherwise it is rewritten atomically (temp file + rename).
+  When a month already has an archive, the new batch gets its own shard with a unique suffix —
+  overwriting is the one failure that destroys data already deleted.
+- **restorable.** A restore tool verifies sha256 and row count before inserting, and inserts
+  idempotently, so replaying the same archive twice is harmless.
+
+- **一份谓词。** 导出与 `DELETE` 共用同一组 `where` + params，「导出的行」与「删掉的行」就不可能有偏差。复用检查比对行时也一并比对 params——同一个月、行数相同但时间窗不同，那是另一批导出。
+- **失败朝严。** 写盘、校验、压缩任何一步出问题都抛错，调用方随后**一行都不删**。导出一半不叫归档。
+- **幂等且绝不覆盖。** 只有 manifest、sha256 与解压后复算的行数三者一致时才复用；否则原子重写（临时文件 + rename）。某个月已有归档时，新批次另写独立分片并加唯一后缀——覆盖是唯一会毁掉「已删数据」的失败。
+- **可回灌。** 回灌工具先校验 sha256 与行数，再幂等插入，同一份归档重放两次也不会重复。
+
+Default windows: transcript events 7 days (lowered from 14 — the tail was never read), audit events
+14 days, and the archive files themselves 30 days, deleted only under `--apply`. Removal of the
+archive is a separate decision from removal of the rows, and it is the only one that is irreversible.
+
+缺省窗口：会话记录 7 天（由 14 天下调——尾部从来没人读）、审计事件 14 天、归档文件本身 30 天，且只有在 `--apply` 下才真删。删归档与删原始行是两次不同的决定，而删归档是唯一不可逆的那一次。
+
 ## Deterministic checks
 
 Ten to fifteen assertions that must hold after any change to the protocol or the rules. Ours

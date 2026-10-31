@@ -117,9 +117,20 @@ panel will show one while the scheduler honours the other.
 
 `close` requires (a) the caller is the row owner or an explicitly authorised delegate, (b) a
 non-empty `evidence`. The gate refuses with exit code 5 rather than writing a partial close — a
-row closed without evidence is worse than an open row, because it looks finished.
+row closed without evidence is worse than an open row, because it looks finished. Ownership falls
+back to the row's own `owner` field, so a re-issued or recovered run still has an identity to be
+checked against.
 
-`close` 要求：(a) 调用者是该行的 owner，或者一个被显式授权的代理；(b) `evidence` 非空。闸会以退出码 5 拒绝，而不是写一个半成品收口——没有证据的收口比一条开着的行更糟，因为它看起来已经完成了。
+**Path evidence is one predicate.** When `expect` names a path, four candidate bases are tried in a
+fixed order — absolute, repository, workspace, current directory — and the answer is "delivered"
+only for a non-empty file or a non-empty directory. Missing, empty, `tbd`, a bare commit sha, and a
+*report shell* all fail: a file whose first lines still say "pending" is a skeleton written at
+dispatch time, not a result. The same predicate serves the settle scan and the close gate, so a
+task cannot settle under one rule and be rejected under another.
+
+`close` 要求：(a) 调用者是该行的 owner，或者一个被显式授权的代理；(b) `evidence` 非空。闸会以退出码 5 拒绝，而不是写一个半成品收口——没有证据的收口比一条开着的行更糟，因为它看起来已经完成了。归属判定会回落到条目自己的 `owner` 字段，所以重签或被恢复的运行仍然有一个可核的身份。
+
+**路径证据只有一个判据。** `expect` 指向路径时，按固定顺序试四个基准——绝对路径、仓库、工作区、当前目录——只有非空文件或非空目录才算「已交付」。缺失、空文件、`tbd`、单独一个 commit sha、以及**报告壳**全部不通过：开头还写着 pending 的文件，是派单时先占位的骨架，不是结果。同一套判据同时服务销账扫描与收口闸，所以任务不会在一处通过、在另一处被拒。
 
 ## Activity evidence, not self-reports
 
@@ -135,6 +146,15 @@ every time before the third signal existed.
 
 When stalled, the reconciler writes the heartbeat-derived decision as `blocked` with a rule code and
 **does not cancel**. Cancelling on suspicion is how you lose work.
+
+A separate guard enforces the time limit, and it too refuses to kill on age alone: a child run past
+its 20-minute soft limit is cancelled only if it is *idle* (no writes, no processes) or if its
+context has crossed the rollover threshold; an absolute hard limit exists above it. The guard runs
+as a plain command, not as a model turn, so enforcing it costs nothing.
+
+判死之后，对账器把结论落成 `blocked` 并带规则码，**不 cancel**。凭猜疑 cancel，正是弄丢别人工作的方式。
+
+时限制由另一道守卫执行，它同样不肯只凭年龄就杀：超过 20 分钟软限的子单，只有在**闲置**（不写盘、无进程）或上下文已越过换卷阈值时才被取消；上面另有一道硬上限。这道守卫以普通命令运行，不占模型回合，所以执行它的成本是零。
 
 子单自己说「还在跑」，不是证据。三个机器信号决定一行是否活着，全部只读：声明文件集里最新的文件 mtime；工作目录是该仓的 `pytest`/`chromium`/`node` 进程数；以及该会话最新的工具调用时间戳（遥测过期时回落到会话记录的 mtime）。
 
@@ -156,7 +176,8 @@ by hand.
 ## Three surfaces, one authority
 
 The ledger is the truth; cards and the panel are projections. A reconciler — read-only by default,
-writing only under `--apply` — checks four drifts:
+writing only under `--apply` — now checks nine drifts, because each surface added a new way two
+views can disagree:
 
 | Check | Drift | Under `--apply` |
 |---|---|---|
@@ -164,14 +185,34 @@ writing only under `--apply` — checks four drifts:
 | D2 | card bound to no ledger row through `cardId` | report only, counted as unowned — never hidden, never auto-deleted |
 | D3 | ledger terminal (`done`/`cancelled`) but the card still open | close the card and archive it |
 | D4 | card `running` while the ledger is not, or no claim, or all activity silent >20 min | demote to `ready` + diagnostic |
+| D5 | ledger open (`running`/`blocked`) but the card is done, or the `cardId` is no longer on the board | report only by default; two explicit flags close the row or reopen the card |
+| D6 | ledger terminal, card in no terminal state, not archived | archive the card (does not require a claim) |
+| D7 | ledger `blocked` while its carrier is still alive (a false block) | after a second hit ≥60 s later: `blocked → ready → running`; it corrects, never closes |
+| D8 | a retired ledger mirror still present on disk | archive, then delete; content is not compared, and a symlink to the canonical file is not drift |
+| D9 | an `automation` entry still carrying a `cardId` | report only; the fix is the release-cards command |
 
-台账是真相，卡片与面板只是投影。对账器默认只读、只有 `--apply` 才写，查四类漂移：D1 台账 `ready`/`running` 却没卡 → 补建卡（按标题前缀 `[<entryId>]` 幂等查重）；D2 卡没有通过 `cardId` 绑到任何台账行 → 只报告、计入 unowned，绝不隐藏、绝不自动删；D3 台账已终态（`done`/`cancelled`）但卡还开着 → 收口并归档；D4 卡在 `running` 而台账不是、没有 claim、或活性三项静默 >20 分钟 → 退回 `ready` 并留诊断。
+Two of these carry a discipline worth stating. **D4 does not judge on structure alone**: a missing
+claim or a ledger-not-running is recorded as a diagnostic and the card is left alone; only silence
+across all three activity signals justifies demotion, and an unreadable activity signal
+(`activity-unknown`) demotes nothing. **D7 requires confirmation**: one probe hit only records a
+candidate (visible to `--check`); it takes a second hit at least a minute later, or an updated
+heartbeat, before `--apply` touches the row — and `automation` carriers are exempt, because their
+liveness is the scheduler's last run status, not a resident heartbeat.
 
-Exit codes carry the meaning: `0` no drift under `--check`, or every correction applied; `1` drift
-found / some correction failed; `2` fail-closed — the state contract is missing or drifted, the
-ledger is unreadable, an unknown state appears, or the card backend cannot be read.
+The exit code has four tiers, not three. `0` converged (`--check` clean, or `--apply` followed by a
+re-check of D1/D3/D4 all zero); `1` drift found in read-only mode; `2` a real error — contract
+missing or drifted, ledger unreadable, unknown state, card backend unreadable, apply errors, or
+leftovers after `--apply`, which are written to a to-do file and still exit `2` so the scan shows
+red; `3` partial — the wall clock or the per-run write slice ran out. `3` exists because the outer
+scheduler treats any non-zero exit as a failure and disables a job after ten in a row: "did not
+finish" is not "found drift". A write conflict hit twice in a row on the same item is `deferred`,
+counted in neither leftovers nor the exit code.
 
-退出码带语义：`0` = `--check` 无漂移，或 `--apply` 全部纠正成功；`1` = 查到漂移 / 有纠正失败；`2` = 失败朝严——状态契约缺失或漂移、台账读不了、出现未知状态、卡片后端读不到。
+台账是真相，卡片与面板只是投影。对账器默认只读、只有 `--apply` 才写；它现在查九类漂移，因为每增加一个展示面，就多出一种两边对不上的方式：D1 台账 `ready`/`running` 却没卡 → 补建卡（按标题前缀 `[<entryId>]` 幂等查重）；D2 卡没有通过 `cardId` 绑到任何台账行 → 只报告、计入 unowned，绝不隐藏、绝不自动删；D3 台账已终态（`done`/`cancelled`）但卡还开着 → 收口并归档；D4 卡在 `running` 而台账不是、没有 claim、或活性三项静默 >20 分钟 → 退回 `ready` 并留诊断；D5 台账非终态（`running`/`blocked`）但卡已 done、或 `cardId` 在板上查不到 → 默认只报不动，另有两个显式开关才收口或重开卡；D6 台账终态、卡非终态且未归档 → 直接归档（不要求 claim）；D7 台账 `blocked` 而载体还活着（假阻塞）→ 隔 ≥60 秒的第二次命中后才 `blocked → ready → running`，只回正不收口；D8 已退役的台账镜像还在盘上 → 先留档再删除，不比内容，指向 canonical 的软链不算漂移；D9 `automation` 条目仍挂着 `cardId` → 只报告，修复走 release-cards 命令。
+
+其中两条值得单独说清纪律。**D4 不单凭结构判死**：没有 claim、台账不在跑，都只记诊断、不动卡；只有三项活性信号同时静默才够降级，活性信号取不到（`activity-unknown`）时一律不降级。**D7 要两次确认**：探针第一次命中只记候选（`--check` 看得见）；要等至少一分钟后的第二次命中，或者心跳已更新，`--apply` 才动那一行——而 `automation` 载体豁免，因为它的活性是调度器的最后运行状态，不是常驻心跳。
+
+退出码是四档而不是三档：`0` 收敛（`--check` 干净，或 `--apply` 后复核 D1/D3/D4 全 0）；`1` 只读模式查到漂移；`2` 真错误——契约缺失或漂移、台账读不了、未知状态、卡后端读不到、apply 报错，或 `--apply` 后仍有残留（残留会写成待办文件，但退出码仍是 `2`，让巡检看得见红）；`3` 部分完成——墙钟或单轮写配额用完。之所以要有 `3`：外层调度把任何非零退出都当失败，连续十次就把任务禁用；「没查完」不是「查到漂移」。同一个条目连续两次撞写冲突则记 `deferred`，既不进残留也不影响退出码。
 
 Card/ledger sync follows the same asymmetry: a drift check that **finds** drift exits `0` (a finding,
 not a failure) while the check **erroring** exits `2`; and one pass reads the cards from a **single
@@ -181,11 +222,49 @@ the reconciler instead of vanishing.
 
 卡/台账同步是同一个不对称：**查到**漂移交 `0`（发现不是失败），检查**出错**才交 `2`；一次同步从**单次快照**取卡，因为逐卡调用会累积到整轮超时。卡片后端没有 job 容器时，同步不再静默跳过——没收口的终态行交给对账器，而不是凭空消失。
 
+## One writer, and no RPC inside the lock
+
+Every write command holds an exclusive `flock` for the whole read-modify-write, on a lock file next
+to the ledger, and releases it only after the atomic replace. Three rules make that lock safe
+instead of merely present:
+
+- **no RPC inside the critical section.** Creating a card is a network call; it used to happen while
+  the lock was held, so one slow backend stalled every writer. Card creation, claim-side card
+  repair and archiving now run *after* the lock is released, queued as jobs the CLI drains in its
+  `finally`; the card layer refuses a call that arrives with the lock already held, so the rule
+  cannot be re-broken by a new caller.
+- **a hold watchdog.** A single hold is capped (5 s by default, overridable per environment) and
+  policed on a real clock at 0.1 s granularity. On overrun it force-releases the lock and writes
+  telemetry plus a stderr warning — normal holds are milliseconds, so a watchdog trip is a defect
+  signal, not routine noise.
+- **bounded waiting.** Acquisition retries a handful of times inside a 6 s budget and then exits
+  with its own code rather than writing concurrently. A holder that is provably gone is taken over;
+  a live holder is waited for.
+
+卡点还在于：取不到锁时绝不并发写，而是明确失败。
+
+## Projection happens on release
+
+Callers no longer have to remember to sync the card. The lock release is the single trigger: every
+entry touched in that transaction is marked dirty and projected once, in the same order, after the
+lock drops. The projection is idempotent (already the target state → no-op, no meaningless move),
+reads its status mapping from the **one** state vocabulary, and never raises: a failure becomes a
+warning plus a pending card job that the worker later replays. Two consequences worth copying: a
+`cancelled` row projects to **archive**, not to "done" (the old mapping made the vocabulary say
+archived while the card said completed); and a card the projection cannot find is recorded as
+`missing` and skipped, never conjured into existence — creation is a separate, explicit intent.
+
+卡片同步不再靠调用方自觉。**释放写锁就是唯一触发点**：这次事务里改过的条目被标脏，出锁后按同一顺序各投影一次。投影是幂等的（已是目标态就 no-op，不做无意义的 move），状态映射只读**那份**词表，而且绝不抛异常：失败变成一条告警加一条待重放的卡任务，由 worker 事后补。两条值得照抄的后果：`cancelled` 投影到**归档**而不是「完成」（旧映射让词表说归档、卡说已完成）；投影找不到卡时记 `missing` 跳过，绝不凭空建卡——建卡是另一个显式意图。
+
 ## Caps
 
 Writing sub-agents run at most three at a time in one deployment; reviewers and read-only legs are
 counted separately, and the cap is enforced before the spawn, not by watching the host afterwards. A
 load ceiling sits in front of it: when load is already above the ceiling, no new write task starts.
+Context rollover has the same shape: one constant (60 % of the window) is defined once and every
+consumer — the guard, the patrol, the docs — reads it, so raising the threshold is one edit rather
+than a hunt for stale copies. It was lowered to 40 % once and raised again, because rotating early
+throws away exactly the context the next step needs.
 
 同一个部署里，写码子会话最多三个同时跑；评审与只读腿分开计数，上限在 spawn 之前就拦住，而不是事后看机器负载。它前面还有一道负载闸：当前 load 已经超过上限时，不新开任何写码任务。
 
