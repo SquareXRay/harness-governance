@@ -27,7 +27,7 @@ scheduled scan that reports when nothing changed.
 
 核心命题很简单：**模型可以无视的指令，不算控制。** 每一条真正要紧的规则，都必须由某种「说服不了」的东西来执行——拦住工具调用的 hook、作为该动作唯一路径的脚本，或者一个「什么都没变化也会报出来」的定时巡检。
 
-This repository documents the three enforcement layers, the 23 rule packs behind them, the
+This repository documents the three enforcement layers, the 24 rule packs behind them, the
 ledger design that makes dispatch auditable, and the evaluation harness that keeps the gates
 themselves honest. It is extracted from a personal agent that has been running daily for months,
 with the machine-specific parts removed.
@@ -178,7 +178,7 @@ These are scale indicators, not targets:
 
 以下是规模指标，不是目标：
 
-- 23 rule packs, ~4.2k lines of gate logic, 65 test files for the gates alone
+- 24 rule packs, ~4.2k lines of gate logic, 65 test files for the gates alone
 - 274 probe assertions in 92 paired cases (each gate has a must-block and a must-allow case)
 - ~34k telemetry events accumulated; every block carries a machine-readable reason
 - 78 operational scripts; dispatch, queue and memory flows are script-only
