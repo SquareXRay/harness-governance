@@ -13,6 +13,54 @@
 
 ---
 
+## Why this is worth your time
+
+**This is the mechanical gate and dispatch ledger for a coding agent that lives for months — not prompt craft, but the machinery that makes overreach, duplication and orphaned work fail closed.**
+
+**这是一个给「连续数月干活的长命 coding agent」用的机械闸与派发台账——不是提示词技巧，而是让越权、重复、失联这些事真的「过不去」的那套机械。**
+
+### Three failures it is built against
+
+**1. Two workers, one repo, silent overwrite.** Two sub-agents run in parallel over the same file set, each commits confidently, and the later one erases the earlier one's work.
+
+**1. 两个 worker、一个仓库、悄悄覆盖。** 两个子 agent 并行改同一批文件，各自自信地提交，后提交的那个把前一个的改动抹掉。
+
+**2. Evidence lost at task close.** The sub-task finishes, the report never lands, and afterwards nobody can prove who changed what, under which instruction.
+
+**2. 子单收尾丢证据。** 子任务跑完了，报告没落盘，事后没人能证明谁改了什么、按哪条指令改的。
+
+**3. Unattended retries stack cards.** A retry loop fires three times and the same task becomes three cards, three claims, three owners.
+
+**3. 无人值守时重试叠卡。** 重试循环跑了三次，同一个任务就变成三张卡、三次认领、三个 owner。
+
+### How the machinery stops each one
+
+- **Registration is the token.** An unregistered dispatch cannot start; the ledger is the only way in.
+- **Single writer, fail-closed.** Concurrent writers on one file set are refused, not warned about.
+- **Close requires evidence.** Every task ends in one of three states: proof attached, auto-backfilled, or listed as missing.
+
+- **登记即令牌。** 未登记的派发起不来；台账是唯一入口。
+- **单写者与并发闸，fail-closed。** 同一批文件上的并发写者直接拒绝，不是警告。
+- **收口必须带证据。** 任务收尾只有三种状态：附了证据、自动补写、进待补写清单。
+
+### Scale — every number checkable in this repo
+
+24 rule packs · 305 probe assertions in 95 paired cases · 29 rule files · 23 wired gates · 0 uncovered gates · 73 test files.
+
+24 个规则包 · 95 组成对用例里的 305 条探针断言 · 29 个规则文件 · 23 道已接线闸 · 0 个未覆盖闸 · 73 个测试文件。
+
+### Start here
+
+1. [`docs/03-gates.md`](docs/03-gates.md) — what a gate is, and why a block must be an event.
+2. [`docs/04-orchestration.md`](docs/04-orchestration.md) — the dispatch ledger, single-writer, and why cards are a projection.
+3. [`docs/05-evaluation.md`](docs/05-evaluation.md) — the probe pairs that keep the gates themselves honest.
+
+- [`docs/03-gates.md`](docs/03-gates.md) —— 闸是什么，以及为什么「拦住」必须是一个事件。
+- [`docs/04-orchestration.md`](docs/04-orchestration.md) —— 派发台账、单写者，以及为什么卡片只是投影。
+- [`docs/05-evaluation.md`](docs/05-evaluation.md) —— 让闸自身保持诚实的成对探针。
+
+---
+
 ## What this is
 
 A set of constraints for an agent that works unattended for months: it dispatches its own
