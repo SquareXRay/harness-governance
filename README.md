@@ -8,7 +8,7 @@
   <img alt="docs" src="https://img.shields.io/badge/docs-bilingual-1f6feb">
   <img alt="license" src="https://img.shields.io/badge/license-MIT%20%2B%20CC--BY--4.0-2ea043">
   <img alt="deps" src="https://img.shields.io/badge/dependencies-none-e3b341">
-  <img alt="gates" src="https://img.shields.io/badge/gates-21%20rule%20packs-8957e5">
+  <img alt="gates" src="https://img.shields.io/badge/gates-24%20rule%20packs-8957e5">
 </p>
 
 ---
@@ -32,7 +32,7 @@ ledger design that makes dispatch auditable, and the evaluation harness that kee
 themselves honest. It is extracted from a personal agent that has been running daily for months,
 with the machine-specific parts removed.
 
-本仓记录三层执行机制、它们背后的 23 个规则包、让派发可审计的台账设计，以及让闸自身保持诚实的评估 harness。内容抽自一个已经每天运行数月、持续干活的个人 agent，机器相关的部分已全部剔除。
+本仓记录三层执行机制、它们背后的 24 个规则包、让派发可审计的台账设计，以及让闸自身保持诚实的评估 harness。内容抽自一个已经每天运行数月、持续干活的个人 agent，机器相关的部分已全部剔除。
 
 Companion repo: **[longmem](https://github.com/SquareXRay/longmem)** covers the memory side.
 
@@ -114,6 +114,22 @@ violation returns next month.
 
 虚线那条边，是多数方案漏掉的部分：**一次违规必须变成一道闸**，否则同一种违规下个月还会回来。
 
+### A block is an event, not just a refusal
+
+Every block path writes one structured record — rule id, tool, reason, session, run — before the refusal is returned, and that write is best-effort in the only direction that matters: a failed write changes no verdict, prints nothing to stdout, and an allowed call pays no I/O at all. The record lands in an append-only file per local day, so "how often did this gate fire this week" is a file read rather than an act of memory.
+
+Two boundaries keep that baseline honest. A block is recorded once per call, deduplicated against the verdict object itself, so a gate consulted twice cannot inflate its own count. And a test run can never reach the production baseline: the directory resolves through five ordered rules (explicit disable, explicit sandbox, environment, "inside a test runner" — refuse the default — then the default), and a whole-suite guard snapshots the baseline's file names, sizes and modification times around the entire suite, failing if one byte moved. Tests that block on purpose are how a gate is proven; they are not evidence about production.
+
+The weekly report turns that distribution into a decision: the top rules over seven days, a fourteen-day total, and the complement — every rule in the catalogue that never fired. A rule that never fires is dead weight or mis-wired; a rule that fires constantly names either an over-broad predicate or a habit worth fixing. The numbers are also written as a JSON sidecar beside the report, so they can be re-cut without re-reading prose.
+
+### 拦截是一个事件，不只是一次拒绝
+
+每一条拦截路径在返回拒绝之前，都先落一条结构化记录——规则 id、工具、原因、会话、运行——而这次写入只在唯一要紧的方向上尽力而为：写失败不改变判决、不往 stdout 打印，被放行的调用一分 I/O 都不付。记录按本地日历日写进只追加的文件，于是「这道闸这周响了几次」是一次读文件，而不是一次回忆。
+
+两条边界让这份基线保持诚实。一次调用只记一行，去重依据是判决对象本身，所以同一道闸被咨询两次也不会给自己刷数。测试运行永远够不到生产基线：目录解析按五条有序规则走（显式关闭、显式沙箱、环境变量、「身处测试运行器」——拒绝默认值——最后才是默认值），另有一道整包守卫在整轮测试前后快照基线的文件名、大小与 mtime，动了一个字节就失败。故意拦截的测试是证明闸的方式，不是关于生产的证据。
+
+周报把这份分布变成决定：近七天按规则排序、近十四天总量，以及补集——规则目录里从未触发过的每一条。从未触发的规则，要么是死重，要么是接错了线；频繁触发的规则，要么谓词过宽，要么点出了一个值得改的习惯。数字同时写成周报旁的 JSON 副产物，重切口径不必重读散文。
+
 ---
 
 ## The second ledger: our own mistakes
@@ -178,14 +194,16 @@ These are scale indicators, not targets:
 
 以下是规模指标，不是目标：
 
-- 24 rule packs, ~4.2k lines of gate logic, 65 test files for the gates alone
-- 274 probe assertions in 92 paired cases (each gate has a must-block and a must-allow case)
+- 24 rule packs, ~13.4k lines of gate logic, 73 test files for the gates alone
+- 305 probe assertions in 95 paired cases, over 29 rule files and 23 wired gates (each gate has a must-block and a must-allow case; the runner also reports coverage gaps)
+- 18 block paths, one JSONL row each; reason capped at 200 characters; one file per local day
 - ~34k telemetry events accumulated; every block carries a machine-readable reason
 - 78 operational scripts; dispatch, queue and memory flows are script-only
 - memory: 23 files / ~480 KB total, index file under 20 KB, topic files capped at 40 KB
 
-- 23 个规则包、约 4.2k 行闸逻辑、仅闸本身就有 65 个测试文件
-- 92 组成对用例里的 274 条探针断言（每道闸都有一个必须拦的用例和一个必须放的用例）
+- 24 个规则包、约 1.34 万行闸逻辑、仅闸本身就有 73 个测试文件
+- 95 组成对用例里的 305 条探针断言，覆盖 29 个规则文件与 23 道已接线闸（每道闸都有一个必须拦的用例和一个必须放的用例；运行器同时报告覆盖缺口）
+- 18 条拦截路径各落一行 JSONL；原因截断到 200 字符；每个本地日一个文件
 - 累积约 3.4 万条遥测事件；每一次拦截都带一个机器可读的原因
 - 78 个运维脚本；派发、队列与记忆流转只走脚本
 - 记忆：23 个文件 / 共约 480 KB，索引文件小于 20 KB，主题文件上限 40 KB

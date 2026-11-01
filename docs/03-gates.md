@@ -50,6 +50,54 @@ hatch the model can type itself is not a gate.
 
 一条不带修复指令的拦截，只会把模型训练成盲目重试；一条逃生口模型自己能敲出来的拦截，就不叫闸。
 
+## A block that leaves a mark
+
+The contract above is what the model sees. The operator needs a second artefact: one structured row per block, written before the verdict leaves the hook.
+
+The row is small on purpose — timestamp, `rule` (a stable machine id: the rule file stem or the seat name, never a prose sentence), `tool`, `reason` (whitespace-collapsed, capped at 200 characters), `sessionKey`, `runId`. One append-only file per local calendar day; the date key is the only rotation.
+
+Three properties are not negotiable:
+
+- **the verdict does not depend on the record.** The write is wrapped so that every failure — missing directory, read-only disk, bad path — returns false and the block still happens. A counter that can widen or narrow a gate has become a second gate.
+- **one row per call.** Deduplication is against the verdict object, not against the reason text: the same verdict consulted twice does not write twice, and two genuinely different blocks with identical text still both count.
+- **the allow path pays nothing.** No directory is created and no file is opened unless the call is actually being blocked.
+
+**Keeping the baseline clean.** A gate suite blocks on purpose, dozens of times per run. An unfiltered counter turns those into fake production traffic, and the first week of numbers is then fiction. So the directory is resolved before any write, in a fixed order, and the resolution may refuse:
+
+| Order | Condition | Result |
+|---|---|---|
+| 1 | the environment variable holds a disable sentinel (six spellings, case-insensitive) | no write |
+| 2 | an explicit directory was passed in (a sandbox) | that directory |
+| 3 | the environment variable holds a real path | that path |
+| 4 | inside a test runner, with neither (2) nor (3) | no write — the default is refused |
+| 5 | otherwise | the production default |
+
+Order is the design: disable outranks sandbox, so a suite can assert "nothing is written even when a directory exists"; and a test context can never fall through to the default. The last line of defence is a whole-suite guard — snapshot the baseline directory (names, sizes, modification times), run every test file in a child process with the environment override removed, snapshot again, and fail if anything changed. It is a separate executable rather than a test, because a test that lives inside the suite it audits can be skipped by exactly the accident it is meant to catch.
+
+
+
+这道契约是模型看到的东西。运维者还需要第二份产物：每次拦截一行结构化记录，在判决离开 hook 之前就写好。
+
+这一行故意很小——时间戳、`rule`（稳定的机器 id：规则文件名或闸位名，绝不是一句散文）、`tool`、`reason`（空白折叠，截断到 200 字符）、`sessionKey`、`runId`。按本地日历日一天一个只追加文件，日期键就是唯一的轮转。
+
+三条性质不可让步：
+
+- **判决不依赖这条记录。** 写入被包住：目录不存在、磁盘只读、路径怪值——任何失败都返回 false，拦截照旧发生。一个能放宽或收紧闸的计数器，已经变成第二道闸。
+- **一次调用一行。** 去重依据是判决对象而不是原因文本：同一个判决被咨询两次不会写两次；而两次真实不同的拦截即使文本一模一样，也各算一次。
+- **放行路径一分不付。** 除非这次调用真的被拦，否则不建目录、不开文件。
+
+**让基线保持干净。** 闸的测试集是故意拦截的，一轮跑下来几十次。不过滤的计数器会把这些变成假的生产流量，于是第一周的数字全是虚构。所以目录在任何写入之前先解析，顺序固定，而且允许拒绝：
+
+| 顺序 | 条件 | 结果 |
+|---|---|---|
+| 1 | 环境变量是关闭哨兵（六种拼写，大小写不敏感） | 不写 |
+| 2 | 调用方显式传入目录（沙箱） | 该目录 |
+| 3 | 环境变量是一个真实路径 | 该路径 |
+| 4 | 身处测试运行器，且 (2)(3) 都没有 | 不写——拒绝默认值 |
+| 5 | 其余 | 生产默认目录 |
+
+顺序本身就是设计：关闭优先于沙箱，所以测试集可以断言「即使存在目录也一个字节都不写」；而测试上下文永远漏不到默认值。最后一道防线是整包守卫——快照基线目录（文件名、大小、mtime），在子进程里跑完全部测试文件并移除环境覆盖，再快照一次，有任何变化即失败。它是一件独立可执行文件，而不是一个测试：一个住在它所要审计的测试集里的测试，会被它本该抓住的那场事故顺手跳过。
+
 ## Mode semantics
 
 | mode | behaviour | when to use |
@@ -102,10 +150,10 @@ hatch the model can type itself is not a gate.
 node test/probe-runner.mjs        # exits non-zero if any paired case fails
 ```
 
-Each pair is `(case, expected)`. In our deployment: 274 assertions across 92 pairs. Two habits
-make this useful:
+Each pair is `(case, expected)`. In our deployment: 305 assertions across 95 pairs, covering 29
+rule files and 23 wired gates with no uncovered gate left. Two habits make this useful:
 
-每一组用例都是 `(case, expected)`。在我们的部署里是 92 组共 274 条断言。让这件事真正有用的两个习惯：
+每一组用例都是 `(case, expected)`。在我们的部署里是 95 组共 305 条断言，覆盖 29 个规则文件与 23 道已接线的闸，没有留下未覆盖的闸。让这件事真正有用的两个习惯：
 
 - **Mutate the gate, not the test.** Before trusting a paired case, break the gate on purpose and
   confirm the test goes red. A test that cannot fail is documentation.

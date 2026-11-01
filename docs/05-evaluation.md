@@ -38,6 +38,46 @@ Rules for a usable stream:
 - **绝不记录完整 prompt**；只记目标段（截断），其余部分记哈希；
 - **被拦的尝试同样是事件** —— 一个只记录成功拦截的闸，会把自己误拦的数据丢掉。
 
+## From blocks to a weekly number
+
+The event stream answers "what happened". The counter answers "how often, and where". One structured row per block (rule id, tool, reason, session, run; one append-only file per local day) is enough to produce, without touching the gates:
+
+- a **seven-day** ranking by rule, with the last time each rule fired;
+- a **fourteen-day** total, so a rule that fired last week but not this one is still visible;
+- a **daily trend**, printed oldest to newest, because a spike and a steady hum look identical in a total;
+- the **complement** — every rule id in the catalogue that never fired in the window. The catalogue is the union of rule file stems and the inner `rules[].id` entries, because one file may carry several ids and the file name alone would silently shrink the catalogue.
+
+| Reading | What it licenses | What it does not |
+|---|---|---|
+| fires many times a day | tighten the wording, or fix the habit it names | it is not automatically a false positive |
+| never fires in 14 days | candidate for retirement, or a wiring bug | it is not proof the risk is gone |
+| a one-day spike | correlate with that day's change log | not a trend on its own |
+
+Zero rows is a result, not an error: the section prints "no blocks this period" and the sidecar records it as empty, so a quiet week cannot be read as a broken collector. Bad lines are skipped, a missing day file counts as zero, and a collection error degrades the section to `n/a` with a reason instead of failing the whole report.
+
+The numbers are also written as a JSON sidecar beside the report (`<report>-denials.json`, or an explicit path), so a different cut of the same week does not require regenerating prose.
+
+Why a file per day rather than a database: the writer runs inside the hook that guards every tool call, where the only acceptable failure is "no row". A local append has that property; a network or schema dependency does not. The cost is that a query is a scan of at most fourteen small files, which is why the window is a constant and not an argument.
+
+事件流回答「发生了什么」，计数器回答「多常、在哪」。每次拦截一行结构化记录（规则 id、工具、原因、会话、运行；本地日一个只追加文件），就足以在不碰闸的前提下产出：
+
+- 按规则的**七天**排行，附每条规则最近一次触发时间；
+- **十四天**总量，于是上周响过、这周没响的规则仍然看得见；
+- **每日趋势**，从旧到新打印——尖峰和稳定的嗡嗡声在总量里长得一模一样；
+- **补集**——窗口内从未触发的每个规则 id。目录取「规则文件名」与内层 `rules[].id` 的并集，因为一个文件可能带多个 id，只看文件名会悄悄把目录缩小。
+
+| 读法 | 它能支持什么 | 它不能支持什么 |
+|---|---|---|
+| 一天响很多次 | 收紧措辞，或者改掉它点出的习惯 | 不自动等于误拦 |
+| 十四天从未触发 | 退役候选，或接线 bug | 不是「风险已消失」的证明 |
+| 某天尖峰 | 对照当天的变更记录 | 单独不构成趋势 |
+
+零行是结果，不是错误：这一节打印「本期无拦截记录」，副产物里记为 empty，于是安静的一周不会被读成采集器坏了。坏行跳过，缺的日文件按 0 计，采集异常则整节降级成 `n/a` 并附原因，而不是拖垮整份周报。
+
+数字同时写成周报旁的 JSON 副产物（`<report>-denials.json`，或显式路径），换个口径切同一周不必重新生成散文。
+
+为什么一天一个文件而不是数据库：写者住在守着每一次工具调用的 hook 里，那里唯一可接受的失败是「没有这一行」。本地追加有这个性质；网络或 schema 依赖没有。代价是查询最多扫十四个小文件，所以窗口是一个常量，而不是一个参数。
+
 ## Export before delete
 
 Retention is not "drop rows older than N days"; it is "export them, prove the export, then drop".
@@ -126,13 +166,13 @@ separate liveness signal (last-run timestamp + exit code), never by making the s
 | Cadence | Content |
 |---|---|
 | daily | host/user-level anomalies only, one line per finding, deduplicated for 6 h |
-| weekly | decision-default compliance, gate counts, memory budgets vs limits |
+| weekly | decision-default compliance, gate counts and denial distribution, memory budgets vs limits |
 | monthly | rule pack inventory, dead rules, false-positive review |
 
 | 节奏 | 内容 |
 |---|---|
 | 每日 | 只报主机/用户层面的异常，每条发现一行，6 小时内去重 |
-| 每周 | 决策默认值遵守情况、闸数量、记忆预算与上限 |
+| 每周 | 决策默认值遵守情况、闸数量与拦截分布、记忆预算与上限 |
 | 每月 | 规则包盘点、死规则、误拦复核 |
 
 ## A worked anecdote

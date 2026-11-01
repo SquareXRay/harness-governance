@@ -132,6 +132,28 @@ task cannot settle under one rule and be rejected under another.
 
 **路径证据只有一个判据。** `expect` 指向路径时，按固定顺序试四个基准——绝对路径、仓库、工作区、当前目录——只有非空文件或非空目录才算「已交付」。缺失、空文件、`tbd`、单独一个 commit sha、以及**报告壳**全部不通过：开头还写着 pending 的文件，是派单时先占位的骨架，不是结果。同一套判据同时服务销账扫描与收口闸，所以任务不会在一处通过、在另一处被拒。
 
+## Proof, or the card lies
+
+Closing a row is not the same as proving it. Three states are allowed, and they are distinguished by *where the evidence physically is*, not by what anyone reports.
+
+1. **The completion wrote it.** The completion call attaches a structured proof to the card; the card's own history shows the artefact, and nothing else needs to happen.
+2. **The completion was refused for a semantic reason, and the proof was appended anyway.** A card that is already done cannot be completed again — completion consumes the claim, and the tool requires one — so retrying is not a retry, it is fabricating a completion event. The close path therefore downgrades to a plain status move (the work is real, the card is closed) and then appends the evidence through the **proof-only channel**: it writes the card's metadata, does not change its status, does not produce a completion event, and does not require a claim. Same evidence, weaker claim, honestly labelled.
+3. **Both channels failed.** The ledger keeps `proofPending` plus the original reason, and a second field records why the repair failed — two causes, two fields, so the repair failure cannot overwrite the root cause. One append-only line joins a pending list with the entry id, card id and the evidence itself.
+
+Repair is `annotate`, which uses the same proof-only channel and is **idempotent by marker, not by hope**: the proof carries a label derived from the entry id, so a second run on the same entry finds the marker and is a no-op. The write is issued *without automatic retry*, because the server-side append is not idempotent — every call mints a new proof id, so a retry after a lost response would stack duplicate evidence. A card that still holds a claim is refused outright: someone else is mutating it, and appending into that race gives you two versions of the truth.
+
+One path rule carries the same governance reasoning as the denial baseline: when the ledger being written is not the production ledger, the pending list is written next to *that* ledger, never to the production location. A simulated failure in a test must not become a real to-do item.
+
+收口一条行，不等于证明了它。允许三种状态，区分依据是**证据物理上在哪里**，而不是谁的口头报告。
+
+1. **完成动作写进去了。** 完成调用把结构化证据挂到卡上；卡自己的历史里就有那个产物，别的什么都不用做。
+2. **完成被语义拒绝，证据仍然补上了。** 已经是 done 的卡不能再完成一次——完成会消耗 claim，而那个工具要求 claim——所以重试不是重试，是伪造一次完成事件。于是收口路径降级成一次普通状态迁移（活是真的，卡也关了），再走**只写证据的通道**把凭据补上：它只写卡的 metadata，不改状态、不产生完成事件、不要求 claim。同一份证据，更弱的主张，标注得诚诚实实。
+3. **两条通道都失败。** 台账保留 `proofPending` 与最初的原因，另一个字段记下补写为何失败——两个原因、两个字段，补写失败不会覆盖根因。一行只追加记录进入待补写清单，带着条目 id、卡 id 和证据本身。
+
+补写命令是 `annotate`，走同一条只写证据的通道，而且**靠标记幂等，不靠指望**：证据带一个由条目 id 派生的标签，同一条目第二次执行会找到标记并 no-op。写入**不带自动重试**，因为服务端的证据追加本身不幂等——每次调用都铸一个新的证据 id，丢响应之后重试会把证据叠成两份。卡上仍有 claim 时直接拒绝：别人正在动它，往这个竞态里追加，就是给自己造两个版本的真相。
+
+一条路径规则带着与拦截基线相同的治理理由：当被写的台账不是生产台账时，待补写清单落在**那份**台账旁边，绝不落生产位置。测试里模拟出来的一次失败，不该变成一个真实的待办项。
+
 ## Activity evidence, not self-reports
 
 A sub-agent's own "still running" is not evidence. Three machine signals decide whether a row is
@@ -255,6 +277,28 @@ archived while the card said completed); and a card the projection cannot find i
 `missing` and skipped, never conjured into existence — creation is a separate, explicit intent.
 
 卡片同步不再靠调用方自觉。**释放写锁就是唯一触发点**：这次事务里改过的条目被标脏，出锁后按同一顺序各投影一次。投影是幂等的（已是目标态就 no-op，不做无意义的 move），状态映射只读**那份**词表，而且绝不抛异常：失败变成一条告警加一条待重放的卡任务，由 worker 事后补。两条值得照抄的后果：`cancelled` 投影到**归档**而不是「完成」（旧映射让词表说归档、卡说已完成）；投影找不到卡时记 `missing` 跳过，绝不凭空建卡——建卡是另一个显式意图。
+
+## Alerts have a shape
+
+A scheduled wake-up is a delivery, and its delivery mode is part of the contract rather than an implementation detail. Three shapes, chosen by the target, never by default:
+
+| Target | Shape | Resulting delivery |
+|---|---|---|
+| the main session | a system event injected into it | none (it is the session) |
+| an internal session (child run, panel, patrol) | the session key as target, **delivery disabled explicitly** | `none` |
+| an external channel session | the session key plus the channel | delivered to that channel |
+
+The middle row is the one that fails quietly. Omit the explicit disable and the default is *announce to the last used channel*; the moment a deployment has more than one channel that default is ambiguous, and the fail-closed resolver rejects it — the job is never created, so the alert that should have fired is simply missing. The failure looks like calm. That is why the shape is asserted in a test (the argument list is inspected, not the intention) instead of being documented and trusted.
+
+一次定时唤醒就是一次投递，而投递形状是契约的一部分，不是实现细节。三种形状，由目标决定，绝不由默认值决定：
+
+| 目标 | 形状 | 落到哪 |
+|---|---|---|
+| 主会话 | 注入一条系统事件 | 无投递（它就是那个会话） |
+| 内部会话（子运行、面板、巡检） | 以该会话键为目标，并**显式关闭投递** | `none` |
+| 外部频道会话 | 会话键加频道 | 投递到该频道 |
+
+中间那一行才是会安静失败的那种。省掉显式关闭，默认就是「播报到最近用过的频道」；一旦部署里有不止一个频道，这个默认就是歧义的，失败朝严的解析器会直接拒绝——任务根本没被创建，于是本该响的那次告警消失了。这种故障看起来像太平无事。所以形状要在测试里断言（检查的是参数表，不是意图），而不是写进文档然后指望它。
 
 ## Caps
 
