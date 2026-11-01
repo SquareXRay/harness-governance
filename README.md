@@ -247,14 +247,14 @@ These are scale indicators, not targets:
 - 18 block paths, one JSONL row each; reason capped at 200 characters; one file per local day
 - Every block carries a machine-readable reason; records are append-only JSONL, one row per block
 - 44 top-level entry scripts plus 125 tool modules; dispatch, queue and memory flows are script-only
-- memory: 24 files / ~632 KB total, index file ~10 KB, topic files capped at 40 KB
+- memory: 24 files / ~596 KB total, index file ~10 KB, topic files capped at 40 KB
 
 - 24 个规则包、约 1.34 万行闸逻辑、仅闸本身就有 73 个测试文件
 - 95 组成对用例里的 305 条探针断言，覆盖 29 个规则文件与 23 道已接线闸（每道闸都有一个必须拦的用例和一个必须放的用例；运行器同时报告覆盖缺口）
 - 18 条拦截路径各落一行 JSONL；原因截断到 200 字符；每个本地日一个文件
 - 每一次拦截都带机器可读原因；记录为 append-only JSONL，一次拦截一行
 - 44 个顶层入口脚本 + 125 个工具模块；派发、队列与记忆流转只走脚本
-- 记忆：24 个文件 / 共约 632 KB，索引文件约 10 KB，主题文件上限 40 KB
+- 记忆：24 个文件 / 共约 596 KB，索引文件约 10 KB，主题文件上限 40 KB
 
 ---
 
