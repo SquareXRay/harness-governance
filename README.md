@@ -88,6 +88,33 @@ Companion repo: **[longmem](https://github.com/SquareXRay/longmem)** covers the 
 
 ---
 
+## 2026-11 update
+
+Two additions this month, both about what happens *after* the interesting part is over.
+
+**[`SPINE.md`](SPINE.md) — one page, three layers.** Budget → gates → measurement, in the order a
+single request passes through them, with the seam to [longmem](https://github.com/SquareXRay/longmem)
+stated explicitly: memory and budget live there, gates and measurement live here, and each layer only
+holds because the next one can prove the previous one still works.
+
+**[`docs/09-cleanup.md`](docs/09-cleanup.md) — the cleanup triad.** Every long-lived harness eventually
+accumulates rows that outlive their truth: a ledger row still `running` for a subsession that died, a
+card nobody claimed, a lock whose owner is gone. The chapter splits the repair into three verbs with
+different permissions — **discover** (read-only, no model, silent when clean), **settle** (single
+writer, closes only with a commit or report pointer), **reclaim** (maintenance window only, export →
+`sha256` → manifest → delete). No boundary means no deletion, and human conversations never expire by
+time.
+
+## 2026-11 更新
+
+这个月加了两份内容，都是关于「精彩的部分结束之后」发生什么。
+
+**[`SPINE.md`](SPINE.md) —— 一页、三层。** 预算 → 闸 → 度量，按一次请求经过它们的顺序，并把与 [longmem](https://github.com/SquareXRay/longmem) 的接缝写明：记忆与预算在那边，闸与度量在这边；每一层之所以站得住，是因为后一层能证明前一层还在工作。
+
+**[`docs/09-cleanup.md`](docs/09-cleanup.md) —— 清理三动作。** 任何长命 harness 最终都会攒下一批活过自己事实的行：子会话已死而台账还写 `running`、没人认领的卡、持有者早已消失的锁。这一章把修复拆成三个权限不同的动词——**discover**（只读、不用模型、干净时零输出）、**settle**（唯一写者，只有附上 commit 或报告指针才允许收口）、**reclaim**（只在维护窗口，导出 → `sha256` → 清单 → 删除）。没有边界就不删；人的对话不按时间过期。
+
+---
+
 ## The problem it fixes
 
 | Failure | What it looks like | Cost |
@@ -260,6 +287,8 @@ These are scale indicators, not targets:
 
 ## Read order
 
+**Start here:** [`SPINE.md`](SPINE.md) — the whole thing on one page: budget → gates → measurement.
+
 1. [`docs/01-principles.md`](docs/01-principles.md) — why "narrow, never widen" and "fail closed"
 2. [`docs/02-architecture.md`](docs/02-architecture.md) — the five layers end to end
 3. [`docs/03-gates.md`](docs/03-gates.md) — how to write a gate that survives refactoring
@@ -268,6 +297,9 @@ These are scale indicators, not targets:
 6. [`docs/06-incidents.md`](docs/06-incidents.md) — five failures that shaped the design
 7. [`docs/07-adoption.md`](docs/07-adoption.md) — a minimum viable harness in five steps
 8. [`docs/08-cross-validation.md`](docs/08-cross-validation.md) — **the centre**: independent agents checking each other, evidence over votes, fail-closed panels
+9. [`docs/09-cleanup.md`](docs/09-cleanup.md) — discover → settle → reclaim: repairing stale state without deleting live work
+
+**从这里开始：** [`SPINE.md`](SPINE.md) —— 一页看完：预算 → 闸 → 度量。
 
 1. [`docs/01-principles.md`](docs/01-principles.md) —— 为什么是「只许收窄、不许放宽」和「失败朝严」
 2. [`docs/02-architecture.md`](docs/02-architecture.md) —— 五层结构端到端
@@ -277,4 +309,5 @@ These are scale indicators, not targets:
 6. [`docs/06-incidents.md`](docs/06-incidents.md) —— 五次塑造了设计的事故
 7. [`docs/07-adoption.md`](docs/07-adoption.md) —— 五步搭出最小可用 harness
 8. [`docs/08-cross-validation.md`](docs/08-cross-validation.md) —— **中心**：独立 agent 互检、证据优先于票数、评审团失败朝严
+9. [`docs/09-cleanup.md`](docs/09-cleanup.md) —— discover → settle → reclaim：修掉过期状态，而不删掉还在跑的活
 
